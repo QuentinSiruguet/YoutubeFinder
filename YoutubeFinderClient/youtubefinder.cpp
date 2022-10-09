@@ -76,7 +76,8 @@ void YoutubeFinder::setConnect()
 
     connect(manager, &QNetworkAccessManager::finished,this, &YoutubeFinder::replyFinished);
     connect(socket, &QTcpSocket::errorOccurred, this, &YoutubeFinder::serverConnect);
-    connect(socket, SIGNAL(readyRead()), SLOT(readyRead()));
+    connect(socket, &QTcpSocket::readyRead, this, &YoutubeFinder::readyRead);
+    //connect(socket, SIGNAL(readyRead()), SLOT(readyRead()));
 }
 
 void YoutubeFinder::togglePerformance()
@@ -86,9 +87,8 @@ void YoutubeFinder::togglePerformance()
 }
 void YoutubeFinder::enterClicked()
 {
-
     if(!connecting){
-        socket->connectToHost("127.0.0.1", 54000);
+        socket->connectToHost("SERVER IP", 54000);
         connecting = true;
     }
     if(online)
@@ -133,12 +133,13 @@ void YoutubeFinder::serverConnect(QAbstractSocket::SocketError error)
     if(!socket->waitForConnected(1000))
     {
         no_server->setText("Can't connect to the server\n\nTrying to reconnect...");
-        socket->connectToHost("127.0.0.1", 54000);
+        socket->connectToHost("SERVER IP", 54000);
     }
 }
 
 void YoutubeFinder::readyRead()
 {
+    //ON CHANGE UN PEU L'AFFICHAGE
     no_server->setText("");
     enter_button->setText("QUIT");
     online = true;
@@ -146,30 +147,33 @@ void YoutubeFinder::readyRead()
     url_youtube->show();
     ui->NAMEONLINE->setText(name_text->toPlainText());
 
+    //ON LIT LE MESSAGE DU SERVEUR
     QByteArray myByte = socket->readAll();
     qDebug() << myByte;
-    if(myByte.contains("#ASKCONNECTIONID"))
+    if(myByte.contains("#ASKCONNECTIONID")) //IL VEUT L'USERNAME (TODO: PASSWORD)
     {
         QString commandid = "\\connect "+name_text->toPlainText();
         socket->write(commandid.toStdString().c_str());
     }
 
-    else if(myByte.contains("#CONFIRMEDCONNECTION") || myByte.contains("#CONFIRMEDDONE"))
+    else if(myByte.contains("#CONFIRMEDCONNECTION") || myByte.contains("#CONFIRMEDDONE")) //CONFIRMATION CONNECTION/9ID FINI POUR BOUCLER
     {
-
-        QString credits = myByte.toStdString().substr(myByte.toStdString().find(' ')+1, myByte.toStdString().size()).c_str();
-        ui->CREDITS->setText(credits + " CREDITS");
         QString commandgen = "\\gen9id";
         socket->write(commandgen.toStdString().c_str());
     }
-    else if(myByte.contains("#9ID"))
+    else if(myByte.contains("#9ID")) //LE CLIENT RECOIT LE 9ID
     {
         std::string gen9id = myByte.toStdString().substr(4, myByte.size());
         std::string url = "https://www.youtube.com/watch?v="+gen9id;
         url_youtube->setText(url.c_str());
         parseReceived(gen9id);
     }
-    else if(myByte.contains("#SERVEROUT"))
+    if(myByte.contains("#UPDATECREDITS")) //LE CLIENT RECOIT LA NOUVELLE VALEURE DES CREDITS
+    {
+        QString credits = myByte.toStdString().substr(myByte.toStdString().find(' ')+1, myByte.toStdString().size()).c_str();
+        ui->CREDITS->setText(credits + " CREDITS");
+    }
+    else if(myByte.contains("#SERVEROUT")) //TODO
     {
         enterClicked();
     }
@@ -177,6 +181,7 @@ void YoutubeFinder::readyRead()
 
 void YoutubeFinder::parseReceived(std::string r)
 {
+    //ON REQUEST LES 4096 IDS POSSIBLE
     count = 0;
     for(int i = 0; i < 64; i++)
     { 
@@ -186,6 +191,7 @@ void YoutubeFinder::parseReceived(std::string r)
             url << "https://www.youtube.com/watch?v="<<r.substr(0,r.size()-1)<<base64[i]<<base64[y];
             QUrl u(url.str().c_str());
             manager->get(QNetworkRequest(u));
+
         }
     }
 }
@@ -196,18 +202,21 @@ void YoutubeFinder::replyFinished(QNetworkReply *reply) {
     if(!performance)
         url_youtube->setText(reply->url().toString());
 
-    if(answer.contains("\"status\":\"ERROR\""));
-    else
+    if(answer.contains("\"status\":\"ERROR\"")) // 99.999999999% des cas, il n'y a pas de vidéo
     {
-        socket->write(reply->url().toString().toStdString().c_str());
-        qDebug() << "FIND ONE at " << reply->url();
     }
-    reply->deleteLater();
+    else // IL Y A UNE VIDEO
+    {
+        std::stringstream q;
+        q << "\\found " << reply->url().toString().toStdString().substr(32,reply->url().toString().toStdString().size());
+        socket->write(q.str().c_str());
+    }
+    reply->deleteLater(); //ON PENSE A DELETE OU LEAK MEMORY
     count++;
 
     if(!performance && count < 4096)
-        this->update();
+        this->update(); //DESSIN FRACTAL TREE
 
     else if(count == 4096)
-        socket->write("\\done");
+        socket->write("\\done"); //ON A TERMINÉ TOUT LES IDS POSSIBLE
 }

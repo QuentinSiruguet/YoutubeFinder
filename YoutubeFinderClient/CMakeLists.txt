@@ -64,3 +64,5 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Network)
 target_link_libraries(YoutubeFinderClient PRIVATE Qt6::Network)
+
+

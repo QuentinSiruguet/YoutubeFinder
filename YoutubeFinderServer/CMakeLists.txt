@@ -66,3 +66,5 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Network)
 target_link_libraries(YoutubeFinderServer PRIVATE Qt6::Network)
+find_package(Qt6 REQUIRED COMPONENTS Sql)
+target_link_libraries(YoutubeFinderServer PRIVATE Qt6::Sql)
