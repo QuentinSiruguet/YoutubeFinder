@@ -28,8 +28,8 @@ If there was 10 billions videos on Youtube, that would give us 1 / 2 968 196 410
 We also need to take into account that a lot of videos are just in private, so there wont be any way to see them.
 
 Last time i worked on this software, i was able to make 4096 id test every minutes with ~30Mb/s.
-A was able to start the software multiple times and with the fiber optic, i was at ~50k test every minutes.
-So arround 3 millions very hours.
+I was able to start the software multiple times and with the fiber optic, i was at ~50k test every minutes.
+So arround 3 millions every hours.
 I would need ~1000 hours to have those 2.968 billions.
 So. What could be done ?
 
